@@ -1,0 +1,84 @@
+[
+    {
+        "children":
+        [
+            {
+                "children":
+                [
+                    {
+                        "children":
+                        [
+                            {
+                                "hasstring": "1",
+                                "iconCls": "icon-arrow",
+                                "id": "651d168d-920b-39b3-8e97-18dbe7a48bde",
+                                "instance": "java.lang.Object android.content.Context.getSystemService(\"@red_start@display@red_end@\")",
+                                "method": "java.lang.Object android.content.Context.getSystemService(java.lang.String)",
+                                "root": "0",
+                                "tid": 17186,
+                                "time": "2023-08-23 09:11:16.473",
+                                "_parentId": "7168a7b5-d297-3b0a-9224-2e01fcf069f1",
+                                "state": "open"
+                            }
+                        ],
+                        "hasstring": "0",
+                        "iconCls": "icon-arrow",
+                        "id": "7168a7b5-d297-3b0a-9224-2e01fcf069f1",
+                        "instance": "android.hardware.display.DisplayManager org.chromium.ui.display.DisplayAndroidManager.d()",
+                        "method": "android.hardware.display.DisplayManager org.chromium.ui.display.DisplayAndroidManager.d()",
+                        "root": "0",
+                        "tid": 17186,
+                        "time": "2023-08-23 09:11:16.471",
+                        "_parentId": "60360454-9f3e-3c04-b697-2ca87375cde3",
+                        "state": "open"
+                    }
+                ],
+                "hasstring": "0",
+                "iconCls": "icon-arrow",
+                "id": "60360454-9f3e-3c04-b697-2ca87375cde3",
+                "instance": "android.hardware.display.DisplayManager org.chromium.ui.display.DisplayAndroidManager.b()",
+                "method": "android.hardware.display.DisplayManager org.chromium.ui.display.DisplayAndroidManager.b()",
+                "root": "0",
+                "tid": 17186,
+                "time": "2023-08-23 09:11:16.470",
+                "_parentId": "36278702-63e0-39f9-8790-dc6c3741ce08",
+                "state": "open"
+            }
+        ],
+        "hasstring": "0",
+        "iconCls": "icon-arrow",
+        "id": "36278702-63e0-39f9-8790-dc6c3741ce08",
+        "instance": "",
+        "method": "void org.chromium.ui.display.DisplayAndroidManager$b.onDisplayChanged(int)",
+        "root": "1",
+        "tid": 17186,
+        "time": "2023-08-23 09:11:16.469",
+        "state": "open"
+    },
+    {
+        "children":
+        [
+            {
+                "hasstring": "1",
+                "iconCls": "icon-arrow",
+                "id": "1d74a3bb-812d-3dbe-a307-c33a45b77054",
+                "instance": "java.lang.Object android.content.Context.getSystemService(\"@red_start@yyyy-MM-dd\"T\"HH:mm:ss\"Z\"@red_end@\")",
+                "method": "java.lang.Object android.content.Context.getSystemService(java.lang.String)",
+                "root": "0",
+                "tid": 17186,
+                "time": "2023-08-23 09:11:16.475",
+                "_parentId": "87ddd426-c47f-3fbb-88f1-0e5c68abe25c",
+                "state": "open"
+            }
+        ],
+        "hasstring": "0",
+        "iconCls": "icon-arrow",
+        "id": "87ddd426-c47f-3fbb-88f1-0e5c68abe25c",
+        "instance": "",
+        "method": "java.lang.Object org.chromium.components.embedder_support.application.a$a.getSystemService(java.lang.String)",
+        "root": "1",
+        "tid": 17186,
+        "time": "2023-08-23 09:11:16.474",
+        "state": "open"
+    }
+]

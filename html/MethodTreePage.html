@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Method Calling Tree</title>
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/gray/easyui.css') }}">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/icon.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/color.css') }}">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/default.css') }}">
+	<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.easyui.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='js/locale/easyui-lang-zh_CN.js') }}"></script>
+    <style>
+        .panel-title {
+            font-size: 14px;
+        }
+        .datagrid-header .datagrid-cell span {
+            font-size: 14px;
+        }
+        .tree-title{
+            height: 18px;
+            line-height: 18px;
+            font-size: 14px;
+        }
+        .datagrid-cell, .datagrid-cell-group, .datagrid-header-rownumber, .datagrid-cell-rownumber {
+            height: 18px;
+            line-height: 18px;
+            font-size: 14px;
+        }
+        .l-btn-text {
+            line-height: 24px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body style="width:100%;height:100%;margin:0px;padding:0px;">
+    <table id="tree" class="easyui-treegrid" title="Build method calling tree" style="width:100%;height:1000;" 
+          data-options="singleSelect:true,toolbar:'#tb',footer:'#ft',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+        <thead>
+            <tr>
+                <th data-options="field:'id',width:120,hidden:true">id</th>
+                <th data-options="field:'root',width:120,hidden:true">root</th>
+                <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                <th data-options="field:'time',width:180,align:'center'">call time</th>
+                <th data-options="field:'method',width:1800">method</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="tb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Repeat:&nbsp;
+            <input class="easyui-numberspinner" id="repeat" data-options="min:1,max:5" style="width:50px;"></input>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree" onclick="doPickRepeat()" style="width:100px;">Build Tree</a>
+            <span style="padding-left: 20px;"></span>
+            Tree Options:&nbsp;
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="javascript:void(0)" id="btnAddTempTree" class="easyui-linkbutton c4" iconCls="icon-new" onclick="doOpenAddDlg();" style="width:140px;">Add Temp Tree</a>
+        </div>
+        <div style="font-size:14px;padding:5px 0px;">
+            Statistics:&nbsp;<span id="statustext"></span>
+        </div>
+    </div>
+    <div id="ft" style="height:18px;padding:5px 5px;">
+        
+    </div>
+
+    <div id="treeDlgAdd" class="easyui-dialog" title="Add Tree" style="width:800px;padding:10px;"
+			data-options="
+				iconCls: 'icon-new',
+				buttons: [{
+					text:'confirm',
+					iconCls:'icon-ok',
+					handler:function(){
+						doAdd();
+					}
+				}]
+			" closed="true" modal="true">
+		<form id="treeFormAdd" class="easyui-form" method="post" data-options="novalidate:true">
+	    	<table cellpadding="5">
+	    		<tr>
+	    		    <td>tree name:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="nameAdd" name="name" data-options="required:true" panelHeight="auto" style="width:240px;"></input></td>
+	    		</tr>
+	    		<tr>
+	    		    <td>tree json:</td>
+	    		    <td>
+	    		    	<input class="easyui-textbox" type="text" id="jsonAdd" name="json" data-options="multiline:true,readonly:true" style="width:650px;height:300px;"></input>
+	    		    </td>
+	    		</tr>
+	    		<tr>
+	    		    <td>operation:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="operationAdd" name="operation" data-options="" panelHeight="auto" style="width:240px;"></input></td>
+	    		</tr>
+	    	</table>
+	    </form>
+	</div>
+    
+    <div id="loadingDlg" class="easyui-dialog" style="width:200px;padding:10px;" data-options="" title="" closed="true" closable="false" modal="true">
+        <div style="text-align:center;"><img src="{{ url_for('static', filename='images/loading.gif') }}"></div>
+        <div style="text-align:center;">loading……</div>
+    </div>
+
+    <script type="text/javascript">
+        function doPickRepeat(){
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    var repeat = $('#repeat').numberspinner('getValue');
+                    if(!repeat) {
+                        $.messager.alert('hint', 'Please choose the repeat number!', 'info');
+                        return;
+                    }
+
+                    // $('#tree').treegrid('loadData', '{{ url_for("static", filename="demo.json") }}');
+                    $('#loadingDlg').dialog('open');
+                    $.post('getRepeatTreeData', {repeat: repeat}, function(data, status){
+                        if(data) {
+                            $('#tree').treegrid('loadData', data.tree_json);
+                            $('#statustext').html(data.tree_count+' trees, '+data.method_count+' methods, '+data.data_method_count+' data methods');
+                            $('#loadingDlg').dialog('close');
+                        }
+                        else {
+                            $.messager.alert('hint', 'Load tree data failed!', 'info');
+                            return;
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doToggleRoot() {
+            $('#tree').treegrid('getRoots').forEach(function(item){
+                $('#tree').treegrid('toggle', item.id);
+            });
+        }
+        function doOpenAddDlg() {
+            $('#treeDlgAdd').dialog('open');
+            $('#treeFormAdd').form('clear');
+            var app = window.top.$('#app').combobox('getText');
+	        $('#nameAdd').textbox('setValue', app.replaceAll(" ", "_")+"_Temp_Tree_"+Date.now());
+            var treejson = $('#tree').treegrid('getData');
+            $('#jsonAdd').textbox('setValue', JSON.stringify(treejson));
+        }
+        function doAdd() {
+            $('#treeFormAdd').form('submit', {
+				url:'addTempMethodTree',
+				onSubmit:function(){
+					return $(this).form('enableValidation').form('validate');
+				},
+				success:function(data){
+				    if(data=='success') {
+				        $.messager.alert('hint', 'Add temp tree successfully!', 'info');
+				        $('#treeDlgAdd').dialog('close');
+				    }
+				    else {
+				        $.messager.alert('hint', 'Add Failed!', 'info');
+				        $('#treeDlgAdd').dialog('close');
+				    }
+				}
+            });
+        }
+
+        function styleRow(row) {
+            if(row.root && row.root=='1')
+                return 'background-color:#fbf393;';
+        }
+        $(document).ready(function(){
+            
+        });
+    </script>
+</body>
+</html>

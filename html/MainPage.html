@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Method Calling Tree</title>
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/gray/easyui.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/icon.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/color.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/default.css') }}">
+        <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.easyui.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/locale/easyui-lang-zh_CN.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/leftmenu.js') }}"></script>
+        <style>
+            .panel-title {
+                font-size: 14px;
+            }
+            .datagrid-header .datagrid-cell span {
+                font-size: 14px;
+            }
+            .tree-title{
+                height: 18px;
+                line-height: 18px;
+                font-size: 14px;
+            }
+            .datagrid-cell, .datagrid-cell-group, .datagrid-header-rownumber, .datagrid-cell-rownumber {
+                height: 18px;
+                line-height: 18px;
+                font-size: 14px;
+            }
+            .l-btn-text {
+                line-height: 24px;
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body class="easyui-layout" style="overflow-y: hidden" scroll="no">
+        <div region="north" split="true" border="false" style="overflow:hidden;height:55px;">
+            <div style="font-size:16px;font-weight:bold;padding:15px 0px;">
+                <span style="padding-left: 20px;"></span>
+                Smart Home App:&nbsp;
+                <input class="easyui-combobox" id="app" panelHeight="auto" data-options="editable:false" style="width:160px;">
+                <span style="padding-left: 30px;"></span>
+                Mode:&nbsp;
+                <input type="radio" id="attachMode" name="hookmode" value="1" label="spawn"><label for="attachMode">spawn</label>
+                <input type="radio" id="spawnMode" name="hookmode" value="0" label="attach" checked><label for="spawnMode">attach</label>
+                <span style="padding-left: 10px;"></span>
+                <a href="javascript:void(0)" class="easyui-linkbutton c4" iconCls="icon-frida" onclick="doHook()" style="width:120px;">Hook</a>
+                <span style="padding-left: 10px;"></span>
+                <a href="javascript:void(0)" class="easyui-linkbutton c4" iconCls="icon-no" onclick="doStopTrace()" style="width:120px;">Stop Trace</a>
+                <span style="padding-left: 30px;"></span>
+                App Option:&nbsp;
+                <a href="javascript:void(0)" class="easyui-linkbutton c4" iconCls="icon-redo" onclick="doReboot();" style="width:120px;">Reboot App</a>
+                <span style="padding-left: 10px;"></span>
+                <a href="javascript:void(0)" class="easyui-linkbutton c4" iconCls="icon-cancel" onclick="doKill();" style="width:120px;">Kill App</a>
+                <span style="padding-left: 30px;"></span>
+                Hook Status:&nbsp;<span id="statushook" style="font-size:16px;padding-left: 10px;">stopped</span>
+            </div>
+        </div>
+        <div region="west" split="true" title="Menu" style="width:220px;" id="west">
+            <div id="leftmenu" class="easyui-accordion" fit="true" border="false">
+                <div title="Smali Invoke Tracing" data-options="iconCls:'icon-sys'" style="overflow:auto;">
+                    <ul>
+                        <li><div><a target="mainFrame" way="/BuildSmaliChainPage" ><span class="icon icon-nav" >&nbsp;</span>Build Chain</a></div></li>
+                        <li><div><a target="mainFrame" way="/MergeSmaliChainPage" ><span class="icon icon-nav" >&nbsp;</span>Merge Chain</a></div></li>
+                        <li><div><a target="mainFrame" way="/ManageChainPage" ><span class="icon icon-nav" >&nbsp;</span>Manage Chain</a></div></li>
+                    </ul>
+                </div>
+                <div title="Java Call Tracing" data-options="iconCls:'icon-sys'" style="overflow:auto;">
+                    <ul>
+                        <li><div><a target="mainFrame" way="/MethodTreePage" ><span class="icon icon-nav" >&nbsp;</span>Build Tree</a></div></li>
+                        <li><div><a target="mainFrame" way="/ManageTempTreePage" ><span class="icon icon-nav" >&nbsp;</span>Temp Tree</a></div></li>
+                        <li><div><a target="mainFrame" way="/ManageFormalTreePage" ><span class="icon icon-nav" >&nbsp;</span>Formal Tree</a></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <!-- 中间 主界面 -->
+        <div id="mainPanle" region="center" style="background: #eee; overflow:hidden;">
+            <div id="tabs" class="easyui-tabs"  fit="true" border="false">
+            </div>
+        </div>
+    </body>
+    <script type="text/javascript">
+        function getRadioCheckedValue(radioname){
+            var r = document.getElementsByName(radioname);
+            for (i=0; i<r.length; i++) {
+                if (r[i].checked) {
+                    return r[i].value;
+                }
+            }
+        }
+        function doHook(){
+            var app = $('#app').combobox('getText');
+            var pkg = $('#app').combobox('getValue');
+
+            if(!app) {
+                $.messager.alert('hint', 'Please choose app!', 'info');
+                return;
+            }
+
+            var mode = getRadioCheckedValue("hookmode");
+            if(!mode) {
+                $.messager.alert('hint', 'Please choose hook mode!', 'info');
+                return;
+            }
+
+            $.post('hookapp', {appname: app, pkgname: pkg, hookmode: mode}, function(data, status){
+                if(data && data.msg=='success') {
+                    $('#statushook').html('running');
+                    $.messager.alert('hint', 'Hook successfully!', 'info');
+                }
+                else {
+                    $.messager.alert('hint', data.msg, 'info');
+                }
+            });
+        }
+        function doStopTrace(){
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    $.post('stoptrace', {}, function(data, status){
+                        if(data && data.msg=='success') {
+                            $.messager.alert('hint', 'Tracing stopped', 'info');
+                            return;
+                        }
+                        else {
+                            $.messager.alert('hint', 'Stop tracing failed!', 'info');
+                            return;
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doKill(){
+            var pkg = $('#app').combobox('getValue');
+            if(!pkg) {
+                $.messager.alert('hint', 'Please choose app!', 'info');
+                return;
+            }
+
+            $.post('killapp', {pkgname: pkg}, function(data, status){
+                if(data && data.msg=='success') {
+                    $('#statushook').html('stopped');
+                    $.messager.alert('hint', 'Kill app successfully!', 'info');
+                }
+                else {
+                    $.messager.alert('hint', data.msg, 'info');
+                }
+            });
+        }
+        function doReboot(){
+            var pkg = $('#app').combobox('getValue');
+            if(!pkg) {
+                $.messager.alert('hint', 'Please choose app!', 'info');
+                return;
+            }
+
+            $.post('rebootapp', {pkgname: pkg}, function(data, status){
+                if(data && data.msg=='success') {
+                    $('#statushook').html('stopped');
+                    $.messager.alert('hint', 'Reboot app successfully!', 'info');
+                }
+                else {
+                    $.messager.alert('hint', data.msg, 'info');
+                }
+            });
+        }
+        $(function() {
+            iniAccordion();
+            $('#app').combobox({
+                url:'getAppnameJSON',
+                method: 'GET',
+                valueField:'pkgname',
+                textField:'appname'
+            });
+        });
+    </script>
+</html>

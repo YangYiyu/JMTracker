@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merge Smali Invoking Tree</title>
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/gray/easyui.css') }}">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/icon.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/color.css') }}">
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/default.css') }}">
+	<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='js/jquery.easyui.min.js') }}"></script>
+	<script type="text/javascript" src="{{ url_for('static', filename='js/locale/easyui-lang-zh_CN.js') }}"></script>
+    <style>
+        .panel-title {
+            font-size: 16px;
+        }
+        .datagrid-header .datagrid-cell span {
+            font-size: 14px;
+        }
+        .tree-title{
+            line-height: 18px;
+            font-size: 16px;
+            word-break: break-all;
+            word-wrap: break-word;
+            white-space:pre-wrap;
+            height:auto;
+            white-space: inherit;
+            flex: 1;
+        }
+        .datagrid-cell, .datagrid-cell-group, .datagrid-header-rownumber, .datagrid-cell-rownumber {
+            height: 18px;
+            line-height: 18px;
+            font-size: 14px;
+        }
+        .l-btn-text {
+            line-height: 24px;
+            font-size: 16px;
+        }
+        .datagrid-row-selected {
+            color: rgb(0, 0, 0);
+            background: rgba(0, 129, 220, 0.44);
+        }
+        .textbox .textbox-text {
+            font-size: 16px;
+        }
+        input { 
+            vertical-align: middle; margin-top: 3px;
+        }
+        .datagrid-cell-c1-projectName{
+            display: flex;
+        }
+    </style>
+</head>
+<body class="easyui-layout" style="width:100%;height:100%;margin:0px;padding:0px;">
+    <div region="north" split="false" style="height:40px;padding:5px;" id="north">
+        <span style="padding-left: 5px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doMerge()">Merge Method Chain</a>
+    </div>
+    <div region="west" split="false" style="width:50%;" id="west">
+        <table id="westchain" class="easyui-treegrid" style="width:100%;height:100%;" 
+            data-options="singleSelect:true,toolbar:'#westtb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow,nowrap:false">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1600,formatter:formatViewInstance">method</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="westtb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 3px;">
+            <span style="padding-left: 5px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree-c" onclick="doGrab1()" style="width:120px;">Grab Trace</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-remove" onclick="doClear1()" style="width:120px;">Clear Trace</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleRoot1()" style="width:120px;">Toggle Root</a>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Statistics:&nbsp;<span id="west_sta_trees"></span> trees, <span id="west_sta_methods"></span> methods, <span id="west_sta_str_methods"></span> string methods, <span id="west_sta_time"></span> seconds
+        </div>
+    </div>
+    <div region="east" split="false" style="width:50%;" id="east">
+        <table id="eastchain" class="easyui-treegrid" style="width:100%;height:100%;" 
+            data-options="singleSelect:true,toolbar:'#easttb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow,nowrap:false">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1600,formatter:formatViewInstance">method</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="easttb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 3px;">
+            <span style="padding-left: 5px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree-c" onclick="doGrab2()" style="width:120px;">Grab Trace</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-remove" onclick="doClear2()" style="width:120px;">Clear Trace</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleRoot2()" style="width:120px;">Toggle Root</a>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Statistics:&nbsp;<span id="east_sta_trees"></span> trees, <span id="east_sta_methods"></span> methods, <span id="east_sta_str_methods"></span> string methods, <span id="east_sta_time"></span> seconds
+        </div>
+    </div>
+
+    <div id="mergeChainDlg" class="easyui-dialog" title="View Tree" style="width:1600px;height:1000px;padding:10px;" data-options="iconCls:'icon-tree'" closed="true" modal="true">
+        <table id="mergechain" class="easyui-treegrid" style="width:100%;height:100%;" 
+            data-options="singleSelect:true,toolbar:'#mergetb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow,nowrap:false">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1600,formatter:formatViewInstance">method</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="mergetb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Options:&nbsp;
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleRoot3();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-frida" onclick="doFridaIt()">Frida Method</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-save" onclick="doOpenSave()">Save Method Chain</a>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Statistics:&nbsp;<span id="merge_sta_trees"></span> trees, <span id="merge_sta_methods"></span> methods, <span id="merge_sta_str_methods"></span> string methods, <span id="merge_sta_time"></span> seconds
+        </div>
+    </div>
+
+    <div id="saveChainDlg" class="easyui-dialog" title="Save Method Chain" style="width:800px;padding:10px;" data-options="
+            conCls: 'icon-save',
+            buttons: [{
+                text:'Save',
+                iconCls:'icon-ok',
+                handler:function(){
+                    doSaveMethodChain();
+                }
+            }]
+        " closed="true" modal="true">
+        <div style="margin-top:10px;">
+			<table cellpadding="5" >
+	    		<tr>
+	    		    <td>platform:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="platformSave" data-options="required:true" panelHeight="auto"></input></td>
+	    		</tr>
+                <tr>
+	    		    <td>function:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="capabilitySave" data-options="required:true" panelHeight="auto"></input></td>
+	    		</tr>
+	    		<tr>
+	    		    <td style="margin-top:10px;">remark:</td>
+	    		    <td style="margin-top:10px;"><input class="easyui-textbox" type="text" id="remarkSave" name="remark" data-options="multiline:true" style="width:580px;height:100px;" maxlength="500"></input></td>
+	    		</tr>
+                <tr>
+	    		    <td>methodnum:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="methodnumSave" data-options="required:true,readonly:true" panelHeight="auto"></input></td>
+	    		</tr>
+                <tr>
+	    		    <td>timecost:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="timecostSave" data-options="required:true,readonly:true" panelHeight="auto"></input></td>
+	    		</tr>
+	    	</table>
+		</div>
+    </div>
+
+    <div id="scriptDlg" class="easyui-dialog" title="Frida Script" style="width:800px;height:400px;padding:10px;" closed="true" modal="true">
+		<input class="easyui-textbox" type="text" id="scriptText" data-options="multiline:true" style="width:100%;height:100%;"></input>
+	</div>
+
+    <div id="loadingDlg" class="easyui-dialog" style="width:200px;padding:10px;" data-options="" title="" closed="true" closable="false" modal="true">
+        <div style="text-align:center;"><img src="{{ url_for('static', filename='images/loading.gif') }}"></div>
+        <div style="text-align:center;">loading……</div>
+    </div>
+
+    <script type="text/javascript">
+        function formatViewInstance(value, row, index) {
+            if(row.hasstring=='1') {
+                return row.instance.replaceAll('@red_start@', '<span style="color:red;font-weight:bold;">').replaceAll('@red_end@', '</span>');
+            }
+            return value;
+        }
+
+        function doGrab1(){
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    $('#loadingDlg').dialog('open');
+                    $.post('getSmaliFilteredInstanceTree', {}, function(data, status){
+                        if(data) {
+                            $('#westchain').treegrid('loadData', data.treejson);
+                            $('#west_sta_trees').html(data.root_nodes);
+                            $('#west_sta_methods').html(data.ori_nodes);
+                            $('#west_sta_str_methods').html(data.string_nodes);
+                            $('#west_sta_time').html(data.time_cost);
+                            $('#loadingDlg').dialog('close');
+                        }
+                        else {
+                            $.messager.alert('hint', 'Load smali trace failed!', 'info');
+                            return;
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doClear1(){
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    $.post('clearSmaliTrace', {}, function(data, status){
+                        if(data) {
+                            // $.messager.alert('hint', data.count+' traces have been cleared!', 'info');
+                            return;
+                        }
+                        else {
+                            $.messager.alert('hint', 'Load smali trace failed!', 'info');
+                            return;
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doToggleRoot1() {
+            $('#westchain').treegrid('getRoots').forEach(function(item){
+                $('#westchain').treegrid('toggle', item.id);
+            });
+        }
+
+        function doGrab2(){
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    $('#loadingDlg').dialog('open');
+                    $.post('getSmaliFilteredInstanceTree', {}, function(data, status){
+                        if(data) {
+                            $('#eastchain').treegrid('loadData', data.treejson);
+                            $('#east_sta_trees').html(data.root_nodes);
+                            $('#east_sta_methods').html(data.ori_nodes);
+                            $('#east_sta_str_methods').html(data.string_nodes);
+                            $('#east_sta_time').html(data.time_cost);
+                            $('#loadingDlg').dialog('close');
+                        }
+                        else {
+                            $.messager.alert('hint', 'Load smali trace failed!', 'info');
+                            return;
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doClear2(){
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    $.post('clearSmaliTrace', {}, function(data, status){
+                        if(data) {
+                            // $.messager.alert('hint', data.count+' traces have been cleared!', 'info');
+                            return;
+                        }
+                        else {
+                            $.messager.alert('hint', 'Load smali trace failed!', 'info');
+                            return;
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doToggleRoot2() {
+            $('#eastchain').treegrid('getRoots').forEach(function(item){
+                $('#eastchain').treegrid('toggle', item.id);
+            });
+        }
+
+        function doMerge() {
+            var chain1 = $('#westchain').treegrid('getData');
+            var chain2 = $('#eastchain').treegrid('getData');
+            var time1 = $('#west_sta_time').html();
+            var time2 = $('#east_sta_time').html();
+            if(chain1 && chain2) {
+                $('#loadingDlg').dialog('open');
+                $.post('mergeTwoSmaliChain', {chain1:JSON.stringify(chain1),chain2:JSON.stringify(chain2),time1:time1,time2:time2}, function(data, status){
+                if(data) {
+                    $('#mergeChainDlg').dialog('open');
+                    $('#mergechain').treegrid('loadData', data.treejson);
+                    $('#merge_sta_trees').html(data.root_nodes);
+                    $('#merge_sta_methods').html(data.ori_nodes);
+                    $('#merge_sta_str_methods').html(data.string_nodes);
+                    $('#merge_sta_time').html(data.time_cost);
+                    $('#loadingDlg').dialog('close');
+                }
+                else {
+                    $.messager.alert('hint', data, 'info');
+                }
+            });
+            }
+            else {
+                $.messager.alert('hint', 'These two method chain must not be empty!', 'info');
+            }
+        }
+        function doToggleRoot3() {
+            $('#mergehain').treegrid('getRoots').forEach(function(item){
+                $('#mergehain').treegrid('toggle', item.id);
+            });
+        }
+
+        function doFridaIt() {
+            var selected_row = $('#chain').datagrid('getSelected');
+            if(!selected_row) {
+                $.messager.alert('hint', 'Choose 1 method to frida!', 'info');
+            }
+            $.get('fridamethod', {method:selected_row.method}, function(data, status){
+                if(data) {
+                    $('#scriptDlg').dialog('open');
+                    $('#scriptText').textbox('setValue', data);
+                }
+                else {
+                    $.messager.alert('hint', 'error', 'info');
+                }
+            });
+        }
+        function doOpenSave() {
+            $('#saveChainDlg').dialog('open');
+            $('#platformSave').textbox('setValue', window.top.$('#app').combobox('getValue'));
+            $('#methodnumSave').textbox('setValue', $('#merge_sta_methods').html());
+            $('#timecostSave').textbox('setValue', $('#merge_sta_time').html());
+        }
+        function doSaveMethodChain() {
+            var platform_ = $('#platformSave').textbox('getValue');
+            if(!platform_) {
+                $.messager.alert('hint', 'Please input platform!', 'info');
+                return;
+            }
+            var capability_ = $('#capabilitySave').textbox('getValue');
+            if(!capability_) {
+                $.messager.alert('hint', 'Please input capability!', 'info');
+                return;
+            }
+            var methodnum_ = $('#methodnumSave').textbox('getValue');
+            if(!methodnum_) {
+                $.messager.alert('hint', 'method number is empty!', 'info');
+                return;
+            }
+            var timecost_ = $('#timecostSave').textbox('getValue');
+            if(!timecost_) {
+                $.messager.alert('hint', 'time cost is empty!', 'info');
+                return;
+            }
+            var remark_ = $('#remarkSave').textbox('getValue');
+            var chainjson_ = JSON.stringify($('#mergechain').treegrid('getData'));
+
+            $.post('addMethodChain', {platform:platform_, capability:capability_, chainjson:chainjson_, trigger:'', remark: remark_, methodnum: methodnum_, timecost: timecost_}, function(data, status){
+                if(data=='success') {
+                    $.messager.alert('hint', 'The '+platform_+":"+capability_+" has been saved!", 'info');
+                    $('#saveChainDlg').dialog('close');
+                }
+                else {
+                    $.messager.alert('hint', data, 'info');
+                }
+            });
+        }
+
+        function styleRow(row) {
+            if(row.root && row.root=='1')
+                return 'background-color:#fbf393;';
+        }
+        $(document).ready(function(){
+            
+        });
+    </script>
+</body>
+</html>

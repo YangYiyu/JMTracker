@@ -1,0 +1,8 @@
+/.vscode
+/__pycache__
+/database/shsac.db
+/apk/*.apk
+/HookScript_bk.js
+/HookScript_bk20230813.js
+/HookTest.js
+/test.py

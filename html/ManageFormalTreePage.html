@@ -1,0 +1,466 @@
+<!DOCTYPE HTML>
+<html style="width:100%;height:100%;overflow:hidden;">
+<head>
+        <title>ManageFormalTree</title>
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/gray/easyui.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/icon.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/color.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/default.css') }}">
+        <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.easyui.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/locale/easyui-lang-zh_CN.js') }}"></script>
+        <style>
+            .panel-title {
+                font-size: 16px;
+            }
+            .datagrid-header .datagrid-cell span {
+                font-size: 14px;
+            }
+            .tree-title{
+                line-height: 18px;
+                font-size: 16px;
+                word-break: break-all;
+                word-wrap: break-word;
+                white-space:pre-wrap;
+                height:auto;
+                white-space: inherit;
+                flex: 1;
+            }
+            .datagrid-cell, .datagrid-cell-group, .datagrid-header-rownumber, .datagrid-cell-rownumber {
+                height: 18px;
+                line-height: 18px;
+                font-size: 14px;
+            }
+            .l-btn-text {
+                line-height: 24px;
+                font-size: 16px;
+            }
+            .datagrid-row-selected {
+                color: rgb(0, 0, 0);
+                background: rgba(0, 129, 220, 0.44);
+            }
+            .textbox .textbox-text {
+                font-size: 16px;
+            }
+            input { 
+                vertical-align: middle; margin-top: 3px;
+            }
+            .datagrid-cell-c1-projectName{
+                display: flex;
+            }
+        </style>
+</head>
+<body style="width:100%;height:100%;margin:0px;padding:0px;">
+    <table id="formaltree" class="easyui-datagrid" title="Manage Formal Trees" style="width:100%;height:100%;" data-options="singleSelect:true,rownumbers:true,url:'getFormalMethodTree', toolbar:'#tb',footer:'#ft',pagination:true,pageSize:30,selectOnCheck:true,checkOnSelect:true">
+        <thead>
+            <tr>
+                <th field="ck" checkbox="true"></th>
+                <th data-options="field:'id',width:280,align:'center'">id</th>
+                <th data-options="field:'app',width:180,align:'center'">app</th>
+                <th data-options="field:'operation',width:180,align:'center'">capability</th>
+                <th data-options="field:'treejson',width:700,formatter:formatLongText">tree json</th>
+                <th data-options="field:'instancejson',width:700,formatter:formatLongText">instance json</th>
+                <th data-options="field:'remark',width:180,align:'center'">remark</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="tb" style="padding:2px 5px;">
+        app:&nbsp;<input class="easyui-textbox" id="app" style="line-height:18px;border:1px solid #ccc">
+        operation:&nbsp;<input class="easyui-textbox" id="operation" style="line-height:18px;border:1px solid #ccc">
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-search" onclick="doSearch()">Search</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-cancel" onclick="doDelete()">Delete</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree" onclick="doView()">View Tree</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree-c" onclick="doInspect()">Inspect Trees</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree-c" onclick="doViewInstance()">View Instance</a>
+    </div>
+    <div id="ft" style="padding:2px 5px;">
+        <span style="font-size:12px;">Status:</span>
+    </div>
+
+    <div id="treeViewDlg" class="easyui-dialog" title="View Tree" style="width:1600px;height:1000px;padding:10px;" data-options="iconCls:'icon-tree'" closed="true" modal="true">
+        <table id="viewtree" class="easyui-treegrid" style="width:100%;height:100%;" data-options="singleSelect:true,toolbar:'#viewtb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1800">method</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="viewtb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Options:&nbsp;
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleViewtreeRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            Statistics:&nbsp;<span id="statustext"></span>
+        </div>
+    </div>
+
+    <div id="treeInstanceViewDlg" class="easyui-dialog" title="View Tree Instance" style="width:1600px;height:1000px;padding:10px;" data-options="iconCls:'icon-tree-c'" closed="true" modal="true">
+        <table id="viewinstancetree" class="easyui-treegrid" style="width:100%;height:100%;" data-options="singleSelect:true,toolbar:'#viewinstancetb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow,nowrap:false">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1800,formatter:formatViewInstance">method</th>
+                    <th data-options="field:'instance',width:1200,hidden:true">instance</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="viewinstancetb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Tree Options:&nbsp;
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleViewinstancetreeRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-frida" onclick="doFridaItInstance()">Frida Method</a>
+            <span style="padding-left: 10px;"></span>
+            Filter Basics:&nbsp;<input type="checkbox" id="instancefilter" style="width:20px;height:20px;" onclick="doFilter(this);">
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Tree Statistics:&nbsp;<span id="viewinstancetreestatustext"></span>
+        </div>
+    </div>
+
+    <div id="instanceTreeDlg" class="easyui-dialog" title="Inspect Tree Instance" style="width:1600px;height:1000px;padding:10px;" data-options="iconCls:'icon-tree-c'" closed="true" modal="true">
+        <table id="instancetree" class="easyui-treegrid" style="width:100%;height:100%;" data-options="singleSelect:true,toolbar:'#instancetb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1800,formatter:formatMethodInstance">method</th>
+                    <th data-options="field:'instance',width:1200,hidden:true">instance</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="instancetb" style="padding:2px 5px;">
+        <div style="font-size:14px;">
+            Formal Tree ID:&nbsp;<span id="instancetreeid"></span>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Tree Options:&nbsp;
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleInstanceRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-frida" onclick="doFridaIt()">Frida Method</a>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Instance Options:&nbsp;
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-flag" onclick="doHookBasic()">Hook Basics</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-clear" onclick="doClearHooks()">Clear Hooks</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-search" onclick="doInspectInstance()">Inspect Instances</a>
+            <span style="padding-left: 10px;"></span>
+            <a href="#" class="easyui-linkbutton c4" iconCls="icon-save" onclick="doSaveInstance()">Save Instance</a>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Formal Tree Statistics:&nbsp;<span id="treestatustext"></span>
+        </div>
+        <div style="font-size:14px;padding-top: 10px;">
+            Instance Statistics:&nbsp;<span id="instancestatustext"></span>
+        </div>
+    </div>
+
+    <div id="instanceListDlg" class="easyui-dialog" title="Instances" style="width:1000px;height:300px;padding:10px;" data-options="iconCls:'icon-tree-c'" closed="true" modal="true">
+        <div style="font-size:14px;font-weight:bold;padding:10px 0px;">
+            <span id="instancetitle"></span>
+        </div>
+        <ul class="easyui-datalist" id="instancelist" style="width:100%;" data-options="valueField:'instancevalue',textField:'instanceid',nowrap:false"></ul>
+    </div>
+
+    <div id="scriptDlg" class="easyui-dialog" title="Frida Script" style="width:800px;height:400px;padding:10px;" closed="true" modal="true">
+		<input class="easyui-textbox" type="text" id="scriptText" data-options="multiline:true" style="width:100%;height:100%;"></input>
+	</div>
+
+    <script type="text/javascript">
+        function styleRow(row) {
+            if(row.root && row.root=='1')
+                return 'background-color:#fbf393;';
+        }
+        function formatLongText(value, row, index) {
+            if(value && value.length>100) {
+                return value.substring(0, 100)+" ...";
+            }
+            else {
+                return value;
+            }
+        }
+        function formatMethodInstance(value, row, index) {
+            if(row.instance) {
+                return '<a href="javascript:void(0)" onclick="openInstanceDlg(\''+row.id+'\');" style="color:red;font-size:16px;">'+value+'</a>';
+            }
+            return value;
+        }
+        function formatViewInstance(value, row, index) {
+            // if(row.instance) {
+            //     return '<a href="javascript:void(0)" onclick="openViewInstanceDlg(\''+row.id+'\');" style="color:red;font-size:16px;">'+value+'</a>';
+            // }
+            if(row.hasstring=='1') {
+                return row.instance.replaceAll('@red_start@', '<span style="color:red;font-weight:bold;">').replaceAll('@red_end@', '</span>');
+            }
+            return value;
+        }
+
+        function doSearch() {
+            $('#formaltree').datagrid({
+                url: 'getFormalMethodTree',
+                method: 'POST',
+                queryParams: {
+                    app: $('#app').textbox('getValue'),
+                    operation: $('#operation').textbox('getValue')
+                }
+            });
+        }
+        function doView() {
+            var selected_trees = $('#formaltree').datagrid('getSelections');
+            if(selected_trees.length!=1) {
+                $.messager.alert('hint', 'Choose 1 tree to view!', 'info');
+                return;
+            }
+            $('#treeViewDlg').dialog('open');
+            $('#viewtree').treegrid('loadData', eval('('+selected_trees[0].treejson+')'));
+            $.getJSON('getFormalTreeStatisticsById', {tree_id:selected_trees[0].id}, function(data, status){
+                if(data) {
+                    $('#statustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes);
+                }
+            });
+        }
+        function doViewInstance() {
+            var selected_trees = $('#formaltree').datagrid('getSelections');
+            if(selected_trees.length!=1) {
+                $.messager.alert('hint', 'Choose 1 tree to view!', 'info');
+                return;
+            }
+            $('#treeInstanceViewDlg').dialog('open');
+            $('#viewinstancetree').treegrid('loadData', eval('('+selected_trees[0].instancejson+')'));
+            // $.getJSON('getFormalTreeStatisticsById', {tree_id:selected_trees[0].id}, function(data, status){
+            //     if(data) {
+            //         $('#viewinstancetreestatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes+', instance methods:'+data.instance_nodes);
+            //     }
+            // });
+        }
+        function doInspect() {
+            var selected_trees = $('#formaltree').datagrid('getSelections');
+            if(selected_trees.length!=1) {
+                $.messager.alert('hint', 'Choose 1 tree to view!', 'info');
+                return;
+            }
+            $('#instanceTreeDlg').dialog('open');
+            $('#instancetreeid').html(selected_trees[0].id);
+            $('#instancetree').treegrid('loadData', eval('('+selected_trees[0].treejson+')'));
+            $.getJSON('getFormalTreeStatisticsById', {tree_id:selected_trees[0].id}, function(data, status){
+                if(data) {
+                    $('#treestatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes);
+                }
+            });
+        }
+        function doDelete(){
+            var selected_trees = $('#formaltree').datagrid('getSelections');
+            if(selected_trees) {
+                var id_list = "";
+                $('#formaltree').datagrid('getSelections').forEach(function(item){
+                    id_list += item.id+",";
+                });
+                $.messager.confirm('Confirm', 'Confirm deleting '+selected_trees.length+' rows ?', function (r) {
+                    if (r) {
+                        $.post('deleteFormalMethodTreeByIdList', {id_list:id_list}, function(data, status){
+                            if(data=='success') {
+                                $('#formaltree').datagrid('reload');
+                            }
+                            else {
+                                $.messager.alert('hint', 'Deleting trees failed!', 'info');
+                            }
+                        });
+                    }
+                });
+            }
+            else {
+                $.messager.alert('hint', 'Please choose some trees!', 'info');
+            }
+        }
+        function doToggleViewtreeRoot() {
+            $('#viewtree').treegrid('getRoots').forEach(function(item){
+                $('#viewtree').treegrid('toggle', item.id);
+            });
+        }
+        function doToggleViewinstancetreeRoot() {
+            $('#viewinstancetree').treegrid('getRoots').forEach(function(item){
+                $('#viewinstancetree').treegrid('toggle', item.id);
+            });
+        }
+        function doToggleInstanceRoot() {
+            $('#instancetree').treegrid('getRoots').forEach(function(item){
+                $('#instancetree').treegrid('toggle', item.id);
+            });
+        }
+        function doHookBasic() {
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    var tree_id = $('#instancetreeid').html().trim();
+                    if(!tree_id) {
+                        $.messager.alert('hint', 'Cannot get tree id!', 'info');
+                        return;
+                    }
+                    $.post('hookFormalTreeBasicMethods', {tree_id: tree_id}, function(data, status) {
+                        if(data=='success') {
+                            $.messager.alert('hint', 'Now, you can trigger the app!', 'info');
+                        }
+                        else {
+                            $.messager.alert('hint', data, 'info');
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doClearHooks() {
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    $.post('clearAlreadyHooks', {}, function(data, status) {
+                        if(data=='success') {
+                            $.messager.alert('hint', 'All hooks Have been stopped!', 'info');
+                        }
+                        else {
+                            $.messager.alert('hint', data, 'info');
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function doInspectInstance() {
+            $.get('gethookstatus',{},function(data, status){
+                if(data && data=='running') {
+                    var tree_id = $('#instancetreeid').html().trim();
+                    if(!tree_id) {
+                        $.messager.alert('hint', 'Cannot get tree id!', 'info');
+                        return;
+                    }
+                    $.getJSON('getFormalMethodInstanceTree', {tree_id:tree_id}, function(data, status){
+                        if(data) {
+                            $('#instancetree').treegrid('loadData', data.treejson);
+                            $('#instancestatustext').html('inspected methods: '+data.inscount);
+                        }
+                    });
+                }
+                else {
+                    $.messager.alert('hint', 'The hook is not running!', 'info');
+                }
+            });
+        }
+        function openInstanceDlg(rowid) {
+            var row = $('#instancetree').treegrid('find', rowid);
+            if(row) {
+                $('#instanceListDlg').dialog('open');
+                $('#instancelist').datalist('loadData', []);
+                $('#instancetitle').html(row.method);
+                row.instance.split('&lt;insep&gt;').forEach(function(item){
+                    $('#instancelist').datalist('appendRow', {
+                        'instanceid':item.replaceAll('@red_start@', '<span style="color:red;">').replaceAll('@red_end@', '</span>'),
+                        'instancevalue':item
+                    });
+                });
+                $.parser.parse($('#instancelist'));
+            }
+        }
+        function openViewInstanceDlg(rowid) {
+            var row = $('#viewinstancetree').treegrid('find', rowid);
+            if(row) {
+                $('#instanceListDlg').dialog('open');
+                $('#instancelist').datalist('loadData', []);
+                $('#instancetitle').html(row.method);
+                row.instance.split('&lt;insep&gt;').forEach(function(item){
+                    $('#instancelist').datalist('appendRow', {
+                        'instanceid':item.replaceAll('@red_start@', '<span style="color:red;">').replaceAll('@red_end@', '</span>'),
+                        'instancevalue':item
+                    });
+                });
+                $.parser.parse($('#instancelist'));
+            }
+        }
+        function doFridaIt() {
+            var selected_row = $('#instancetree').datagrid('getSelected');
+            if(!selected_row) {
+                $.messager.alert('hint', 'Choose 1 method to frida!', 'info');
+            }
+            $.get('fridamethod', {method:selected_row.method}, function(data, status){
+                if(data) {
+                    $('#scriptDlg').dialog('open');
+                    $('#scriptText').textbox('setValue', data);
+                }
+                else {
+                    $.messager.alert('hint', 'error', 'info');
+                }
+            });
+        }
+        function doFridaItInstance() {
+            var selected_row = $('#viewinstancetree').datagrid('getSelected');
+            if(!selected_row) {
+                $.messager.alert('hint', 'Choose 1 method to frida!', 'info');
+            }
+            $.get('fridamethod', {method:selected_row.method}, function(data, status){
+                if(data) {
+                    $('#scriptDlg').dialog('open');
+                    $('#scriptText').textbox('setValue', data);
+                }
+                else {
+                    $.messager.alert('hint', 'error', 'info');
+                }
+            });
+        }
+        function doSaveInstance() {
+            var tree_id_ = $('#instancetreeid').html().trim();
+            var instance_json_ =  JSON.stringify($('#instancetree').treegrid('getData'));
+            $.post('updateFormalTreeInstance', {tree_id:tree_id_,instance_json:instance_json_},function(data, status){
+                if(data && data=='success') {
+                    $.messager.alert('hint', 'The instance tree has been saved!', 'info');
+                    $('#formaltree').datagrid('reload');
+                }
+                else {
+                    $.messager.alert('hint', data, 'info');
+                }
+            });
+        }
+        function doFilter(input) {
+            if (input.checked==true) {
+                var selected_row = $('#formaltree').treegrid('getSelected');
+                $.getJSON('getFilteredInstanceTree', {tree_id:selected_row.id}, function(data, status){
+                    if(data) {
+                        $('#viewinstancetree').treegrid('loadData', data.treejson);
+                        $('#viewinstancetreestatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes+', instance methods:'+data.instance_nodes);
+                    }
+                });
+            }
+            else {
+                var selected_row = $('#formaltree').treegrid('getSelected');
+                $('#viewinstancetree').treegrid('loadData', eval('('+selected_row.instancejson+')'));
+                $.getJSON('getFormalTreeStatisticsById', {tree_id:selected_row.id}, function(data, status){
+                    if(data) {
+                        $('#viewinstancetreestatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes+', instance methods:'+data.instance_nodes);
+                    }
+                });
+            }
+        }
+
+        $(document).ready(function(){
+            
+        });
+    </script>
+</body>
+</html>

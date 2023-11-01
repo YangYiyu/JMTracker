@@ -1,0 +1,383 @@
+<!DOCTYPE HTML>
+<html style="width:100%;height:100%;overflow:hidden;">
+<head>
+        <title>ManageTempTree</title>
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/gray/easyui.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/icon.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/themes/color.css') }}">
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/default.css') }}">
+        <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/jquery.easyui.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='js/locale/easyui-lang-zh_CN.js') }}"></script>
+        <style>
+            .panel-title {
+                font-size: 16px;
+            }
+            .datagrid-header .datagrid-cell span {
+                font-size: 14px;
+            }
+            .tree-title{
+                height: 18px;
+                line-height: 18px;
+                font-size: 16px;
+            }
+            .datagrid-cell, .datagrid-cell-group, .datagrid-header-rownumber, .datagrid-cell-rownumber {
+                height: 18px;
+                line-height: 18px;
+                font-size: 14px;
+            }
+            .l-btn-text {
+                line-height: 24px;
+                font-size: 16px;
+            }
+        </style>
+</head>
+<body style="width:100%;height:100%;margin:0px;padding:0px;">
+    <table id="temptree" class="easyui-datagrid" title="Manage Temp Trees" style="width:100%;height:100%;" data-options="rownumbers:true,url:'getTempMethodTree', toolbar:'#tb',footer:'#ft',pagination:true,pageSize:30,selectOnCheck:true,checkOnSelect:true">
+        <thead>
+            <tr>
+                <th field="ck" checkbox="true"></th>
+                <th data-options="field:'id',width:280,align:'center'">id</th>
+                <th data-options="field:'name',width:280,align:'center'">name</th>
+                <th data-options="field:'treejson',width:750,formatter:formatLongText">tree json</th>
+                <th data-options="field:'operation',width:180,align:'center'">capability</th>
+                <th data-options="field:'rtime',width:180,align:'center'">time</th>
+            </tr>
+        </thead>
+    </table>
+    <div id="tb" style="padding:2px 5px;">
+        name:&nbsp;<input class="easyui-textbox" id="name" style="line-height:18px;border:1px solid #ccc">
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-search" onclick="doSearch()">Search</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-tree" onclick="doView()">View Tree</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-filter" onclick="doCompare()">Compare Tree</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-import" onclick="doOpenMerge()">Open Merge</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-cancel" onclick="doDelete()">Delete</a>
+        <span style="padding-left: 20px;"></span>
+        <a href="#" class="easyui-linkbutton c4" iconCls="icon-save" onclick="doOpenSave()">Save Formal Tree</a>
+    </div>
+    <div id="ft" style="padding:2px 5px;">
+        <span style="font-size:12px;">Status:</span>
+    </div>
+
+    <div id="treeMergeDlg" class="easyui-dialog" title="Merge Tree" style="width:600px;padding:10px;" data-options="
+            iconCls: 'icon-import',
+            buttons: [{
+                text:'Confirm',
+                iconCls:'icon-ok',
+                handler:function(){
+                    doMerge();
+                }
+            }]
+        " closed="true" modal="true">
+        <div style="font-size: 16px;padding: 10px 0px;">The trees below will be merged into an intersection.</div>
+        <div style="width:100%;height:100%;margin:0px;padding:0px;">
+            <ul class="easyui-datalist" id="mergedtreelist" style="width:100%;" data-options="valueField:'treeid',textField:'treename'"></ul>
+        </div>
+    </div>
+
+    <div id="treeViewDlg" class="easyui-dialog" title="View Tree" style="width:1600px;height:1000px;padding:10px;" data-options="iconCls:'icon-tree'" closed="true" modal="true">
+        <table id="viewtree" class="easyui-treegrid" style="width:100%;height:100%;" data-options="singleSelect:true,toolbar:'#viewtb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+            <thead>
+                <tr>
+                    <th data-options="field:'id',width:120,hidden:true">id</th>
+                    <th data-options="field:'root',width:120,hidden:true">root</th>
+                    <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                    <th data-options="field:'time',width:180,align:'center'">call time</th>
+                    <th data-options="field:'method',width:1800">method</th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+    <div id="viewtb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Options:&nbsp;
+            <a href="javascript:void(0)" id="btnToggle" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            Statistics:&nbsp;<span id="statustext"></span>
+        </div>
+    </div>
+
+    <div id="treeCompareDlg" class="easyui-dialog" title="Compare Tree" style="width:1800px;height:1000px;padding:10px;" data-options="iconCls:'icon-filter'" closed="true" modal="true">
+        <div class="easyui-layout" style="width:100%;height:100%;margin:0px;padding:0px;">
+            <div region="west" split="true" style="width:50%;" id="west">
+                <table id="westtree" class="easyui-treegrid" style="width:100%;height:100%;" data-options="singleSelect:true,toolbar:'#westtb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+                    <thead>
+                        <tr>
+                            <th data-options="field:'id',width:120,hidden:true">id</th>
+                            <th data-options="field:'root',width:120,hidden:true">root</th>
+                            <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                            <th data-options="field:'time',width:180,align:'center'">call time</th>
+                            <th data-options="field:'method',width:1800">method</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <div region="east" split="true" style="width:50%;" id="east">
+                <table id="easttree" class="easyui-treegrid" style="width:100%;height:100%;" data-options="singleSelect:true,toolbar:'#easttb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+                    <thead>
+                        <tr>
+                            <th data-options="field:'id',width:120,hidden:true">id</th>
+                            <th data-options="field:'root',width:120,hidden:true">root</th>
+                            <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                            <th data-options="field:'time',width:180,align:'center'">call time</th>
+                            <th data-options="field:'method',width:1800">method</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="westtb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Options:&nbsp;
+            <a href="javascript:void(0)" id="btnWestToggle" title="" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleWestRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            Statistics:&nbsp;<span id="weststatustext"></span>
+        </div>
+    </div>
+    <div id="easttb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Options:&nbsp;
+            <a href="javascript:void(0)" id="btnEastToggle" title="" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleEastRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            Statistics:&nbsp;<span id="eaststatustext"></span>
+        </div>
+    </div>
+
+    <div id="saveTreeDlg" class="easyui-dialog" title="Save Formal Tree" style="width:1600px;padding:10px;" data-options="
+            conCls: 'icon-save',
+            buttons: [{
+                text:'Save',
+                iconCls:'icon-ok',
+                handler:function(){
+                    doSaveFormalTree();
+                }
+            }]
+        " closed="true" modal="true">
+        <div style="margin-top:10px;">
+			<table cellpadding="5" >
+	    		<tr>
+	    		    <td>app:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="appSave" name="app" data-options="required:true" panelHeight="auto"></input></td>
+	    		</tr>
+                <tr>
+	    		    <td>operation:</td>
+	    		    <td><input class="easyui-textbox" type="text" id="operationSave" name="operation" data-options="required:true" panelHeight="auto"></input></td>
+	    		</tr>
+	    		<tr>
+	    		    <td style="margin-top:10px;">remark:</td>
+	    		    <td style="margin-top:10px;"><input class="easyui-textbox" type="text" id="remarkSave" name="remark" data-options="multiline:true" style="width:580px;height:100px;" maxlength="500"></input></td>
+	    		</tr>
+	    	</table>
+		</div>
+        <div style="margin-top:10px;">
+            <table id="treeSave" class="easyui-treegrid" title="method tree" style="width:100%;height:800px;" data-options="singleSelect:true,toolbar:'#savetb',idField:'id',treeField:'method',animate:true,rowStyler:styleRow">
+                <thead>
+                    <tr>
+                        <th data-options="field:'id',width:120,hidden:true">id</th>
+                        <th data-options="field:'root',width:120,hidden:true">root</th>
+                        <th data-options="field:'tid',width:80,align:'center'">thread id</th>
+                        <th data-options="field:'time',width:180,align:'center'">call time</th>
+                        <th data-options="field:'method',width:1800">method</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+    <div id="savetb" style="padding:2px 5px;">
+        <div style="font-size:14px;padding-top: 10px;">
+            Options:&nbsp;
+            <a href="javascript:void(0)" id="btnSaveToggle" title="" class="easyui-linkbutton c4" iconCls="icon-reload" onclick="doToggleSaveRoot();" style="width:120px;">Toggle Root</a>
+            <span style="padding-left: 10px;"></span>
+            Statistics:&nbsp;<span id="savestatustext"></span>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        function styleRow(row) {
+            if(row.root && row.root=='1')
+                return 'background-color:#fbf393;';
+        }
+        function formatLongText(value, row, index){
+            if(value && value.length>100) {
+                return value.substring(0, 100)+" ...";
+            }
+            else {
+                return value;
+            }
+        }
+
+        function doSearch(){
+            $('#temptree').datagrid({
+                url: 'getTempMethodTree',
+                method: 'POST',
+                queryParams: {
+                    name: $('#name').textbox('getValue')
+                }
+            });
+        }
+        function doView(){
+            $('#viewtree').treegrid('loadData', []);
+            $('#statustext').html();
+            var selected_trees = $('#temptree').datagrid('getSelections');
+            if(selected_trees.length!=1) {
+                $.messager.alert('hint', 'Choose 1 tree to view!', 'info');
+                return;
+            }
+            $('#treeViewDlg').dialog('open');
+            $.getJSON('getTempTreeStatisticsById', {tree_id:selected_trees[0].id}, function(data, status){
+                if(data) {
+                    $('#viewtree').treegrid('loadData', data.tree_json);
+                    $('#statustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes);
+                }
+            });
+        }
+        function doCompare(){
+            var selected_trees = $('#temptree').datagrid('getSelections');
+            if(selected_trees.length!=2) {
+                $.messager.alert('hint', 'Choose 2 tree to compare!', 'info');
+                return;
+            }
+            $('#treeCompareDlg').dialog('open');
+            $('#westtree').treegrid({'title': selected_trees[0].name});
+            $('#westtree').treegrid('loadData', eval('('+selected_trees[0].treejson+')'));
+            $.getJSON('getTempTreeStatisticsById', {tree_id:selected_trees[0].id}, function(data, status){
+                if(data) {
+                    $('#weststatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes);
+                }
+            });
+            $('#easttree').treegrid({'title': selected_trees[1].name});
+            $('#easttree').treegrid('loadData', eval('('+selected_trees[1].treejson+')'));
+            $.getJSON('getTempTreeStatisticsById', {tree_id:selected_trees[1].id}, function(data, status){
+                if(data) {
+                    $('#eaststatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes);
+                }
+            });
+        }
+        function doDelete(){
+            var selected_trees = $('#temptree').datagrid('getSelections');
+            if(selected_trees) {
+                var id_list = "";
+                $('#temptree').datagrid('getSelections').forEach(function(item){
+                    id_list += item.id+",";
+                });
+                $.messager.confirm('Confirm', 'Confirm deleting '+selected_trees.length+' rows ?', function (r) {
+                    if (r) {
+                        $.post('deleteTempMethodTreeByIdList', {id_list:id_list}, function(data, status){
+                            if(data=='success') {
+                                $('#temptree').datagrid('reload');
+                            }
+                            else {
+                                $.messager.alert('hint', 'Deleting trees failed!', 'info');
+                            }
+                        });
+                    }
+                });
+            }
+            else {
+                $.messager.alert('hint', 'Please choose some trees!', 'info');
+            }
+        }
+        function doOpenMerge() {
+            var selected_trees = $('#temptree').datagrid('getSelections');
+            if(selected_trees.length<2) {
+                $.messager.alert('hint', 'Please choose 2 tree at least!', 'info');
+                return;
+            }
+            $('#treeMergeDlg').dialog('open');
+            $('#mergedtreelist').datalist('loadData', []);
+            selected_trees.forEach(function(item){
+                $('#mergedtreelist').datalist('appendRow', {
+                    'treeid':item.id,
+                    'treename':item.name
+                });
+            });
+        }
+        function doToggleRoot() {
+            $('#viewtree').treegrid('getRoots').forEach(function(item){
+                $('#viewtree').treegrid('toggle', item.id);
+            });
+        }
+        function doToggleWestRoot() {
+            $('#westtree').treegrid('getRoots').forEach(function(item){
+                $('#westtree').treegrid('toggle', item.id);
+            });
+        }
+        function doToggleEastRoot() {
+            $('#easttree').treegrid('getRoots').forEach(function(item){
+                $('#easttree').treegrid('toggle', item.id);
+            });
+        }
+        function doToggleSaveRoot() {
+            $('#treeSave').treegrid('getRoots').forEach(function(item){
+                $('#treeSave').treegrid('toggle', item.id);
+            });
+        }
+        function doMerge() {
+            var tree_id_list = "";
+            $('#temptree').datagrid('getSelections').forEach(function(item){
+                tree_id_list += item.id+",";
+            });
+            $.post('mergeTempMethodTrees', {tree_id_list:tree_id_list}, function(data, status){
+                if(data) {
+                    $.messager.alert('hint', 'Merge successfully!', 'info');
+                    $('#treeMergeDlg').dialog('close');
+                    $('#temptree').datagrid('reload');
+                }
+                else {
+                    $.messager.alert('hint', data, 'info');
+                }
+            });
+        }
+        function doOpenSave() {
+            var selected_trees = $('#temptree').datagrid('getSelections');
+            if(selected_trees.length!=1) {
+                $.messager.alert('hint', 'Choose 1 tree to save!', 'info');
+                return;
+            }
+            $('#saveTreeDlg').dialog('open');
+            $('#appSave').textbox('setValue', window.top.$('#app').combobox('getValue'));
+            $('#operationSave').textbox('setValue', selected_trees[0].operation);
+            $('#treeSave').treegrid('loadData', eval('('+selected_trees[0].treejson+')'));
+            $.getJSON('getTempTreeStatisticsById', {tree_id:selected_trees[0].id}, function(data, status){
+                if(data) {
+                    $('#savestatustext').html('trees:'+data.root_nodes+', methods:'+data.ori_nodes+', basic methods:'+data.basic_nodes);
+                }
+            });
+        }
+        function doSaveFormalTree() {
+            var app_ = $('#appSave').textbox('getValue');
+            if(!app_) {
+                $.messager.alert('hint', 'Please input app!', 'info');
+                return;
+            }
+            var operation_ = $('#operationSave').textbox('getValue');
+            if(!operation_) {
+                $.messager.alert('hint', 'Please input operation!', 'info');
+                return;
+            }
+            var remark_ = $('#remarkSave').textbox('getValue');
+            var treejson_ =  JSON.stringify($('#treeSave').treegrid('getData'));
+            var instancejson_ = '';
+
+            $.post('addFormalMethodTree', {app:app_, operation:operation_, treejson:treejson_, instancejson: instancejson_, remark: remark_}, function(data, status){
+                if(data=='success') {
+                    $.messager.alert('hint', 'The '+app_+":"+operation_+" has been saved!", 'info');
+                }
+                else {
+                    $.messager.alert('hint', data, 'info');
+                }
+                $('#saveTreeDlg').dialog('close');
+            });
+        }
+
+        $(document).ready(function(){
+
+        });
+    </script>
+</body>
+</html>
