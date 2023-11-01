@@ -1,7 +1,7 @@
 # JMTracker
 JMTracker is a tool that automatically tracks the Java method calls within an Android app. It can extract the names and parameter values of Java methods executed by the ART virtual machine during the app's runtime, and build them into a hierarchical method chain.
 
-![JMTracker](https://github.com/YangYiyu/JMTracker/assets/20296244/f40be719-c7a7-4c5f-bd1d-463235ee7522)
+![JMTracker](https://github.com/YangYiyu/JMTracker/assets/20296244/21cfd7c1-7586-48f8-9829-f3143b4731b2)
 
 # Installation
 1. Install Python dependency libraries. It is recommended to perform installation in a separate virtual environment.
